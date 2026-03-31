@@ -1,0 +1,52 @@
+name: Claude Code Review & Security
+on:
+  pull_request:
+    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  # Job 1: Automated code review on every PR
+  code-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: sonnet
+          direct_prompt: |
+            Review this PR as a senior Python/FastAPI developer.
+            Check for:
+            1. Security vulnerabilities (SQL injection, auth bypass, XSS)
+            2. Missing type hints
+            3. Missing or inadequate tests
+            4. Async/await correctness
+            5. Pydantic v2 best practices
+            6. Error handling completeness
+            Format: list findings as CRITICAL/HIGH/MEDIUM/LOW.
+
+  # Job 2: Security-focused scan
+  security-scan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: anthropics/claude-code-security-review@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # Job 3: Respond to @claude mentions in issues/PRs
+  claude-assistant:
+    if: |
+      github.event_name == 'issue_comment' &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
